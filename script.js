@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://xl9ct8a3n5.execute-api.us-east-1.amazonaws.com/Production/hulk';
+const API_BASE_URL = 'https://d1s94mnl1m.execute-api.us-east-1.amazonaws.com/Production/hulk';
 
 let allTasks = [];
 let autoRefreshInterval = null;

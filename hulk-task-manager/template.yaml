@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Hulk Task Manager - serverless CRUD API (API Gateway + Lambda + DynamoDB)
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Email address for error alarms (leave empty to skip alerts)
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  # ---------- Database ----------
+  TasksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST # on-demand, no capacity to manage
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  # ---------- API Gateway ----------
+  HulkApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      StageName: Production
+      Cors:
+        AllowMethods: "'GET,POST,PATCH,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+      # Throttling protects the public API from being spammed
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingRateLimit: 10 # requests per second
+          ThrottlingBurstLimit: 20
+
+  # ---------- Lambda ----------
+  HulkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: index.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TasksTable
+      # Least privilege: CRUD access to THIS table only, nothing else.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TasksTable
+      Events:
+        GetTasks:
+          Type: Api
+          Properties: { RestApiId: !Ref HulkApi, Path: /hulk, Method: GET }
+        CreateTask:
+          Type: Api
+          Properties: { RestApiId: !Ref HulkApi, Path: /hulk, Method: POST }
+        UpdateTask:
+          Type: Api
+          Properties: { RestApiId: !Ref HulkApi, Path: /hulk, Method: PATCH }
+        DeleteTask:
+          Type: Api
+          Properties: { RestApiId: !Ref HulkApi, Path: /hulk, Method: DELETE }
+
+  # ---------- Logs (keep 14 days so they don't pile up forever) ----------
+  HulkFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${HulkFunction}"
+      RetentionInDays: 14
+
+  # ---------- Monitoring ----------
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlertEmail
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  # Our Lambda catches errors and returns HTTP 500, so we watch the API's
+  # 5XX metric (a plain Lambda "Errors" alarm would never fire).
+  ApiServerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertEmail
+    Properties:
+      AlarmDescription: API returned 5XX errors
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub "${AWS::StackName}-api"
+        - Name: Stage
+          Value: Production
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+Outputs:
+  ApiUrl:
+    Description: Put this URL in API_BASE_URL in script.js
+    Value: !Sub "https://${HulkApi}.execute-api.${AWS::Region}.amazonaws.com/Production/hulk"
+  TableName:
+    Value: !Ref TasksTable

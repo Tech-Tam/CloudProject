@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🟢 Hulk Task Manager Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="hulk-container">
+                    <div class="hulk-character" id="hulkCharacter">
+                        <div class="hulk-emoji" id="hulkEmoji">🟢</div>
+                        <div class="hulk-face" id="hulkFace">
+                            <div class="hulk-eyes">
+                                <div class="eye" id="leftEye">👀</div>
+                                <div class="eye" id="rightEye">👀</div>
+                            </div>
+                            <div class="hulk-mouth" id="hulkMouth">😤</div>
+                        </div>
+                        <div class="hulk-arms" id="hulkArms">
+                            <div class="arm left">💪</div>
+                            <div class="arm right">💪</div>
+                        </div>
+                    </div>
+                    <div class="hulk-speech" id="hulkSpeech">HULK READY TO SMASH TASKS! 💪</div>
+                </div>
+                <div class="title-section">
+                    <h1>🟢 Hulk Task Manager Pro</h1>
+                    <p>Advanced CRUD Operations with Real-time Analytics</p>
+                </div>
+            </div>
+            <div class="operation-indicator" id="operationIndicator">
+                <div class="indicator-light" id="indicatorLight"></div>
+                <span id="operationText">Ready for Action</span>
+            </div>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Total: <span id="totalTasks">0</span></span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Completed: <span id="completedTasks">0</span></span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-clock"></i>
+                    <span>Pending: <span id="pendingTasks">0</span></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="api-info">
+            <strong>API Endpoint:</strong> 
+            <code>https://xl9ct8a3n5.execute-api.us-east-1.amazonaws.com/Production/hulk</code>
+            <div class="status-indicator">
+                <span id="apiStatus" class="status-dot offline"></span>
+                <span id="apiStatusText">Checking connection...</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-filter">
+                <input type="text" id="searchTasks" placeholder="🔍 Search tasks..." onkeyup="filterTasks()">
+                <select id="filterStatus" onchange="filterTasks()">
+                    <option value="all">All Tasks</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                </select>
+                <button onclick="exportTasks()" class="export-btn">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <div class="operations">
+            <!-- CREATE -->
+            <div class="operation-card create-card">
+                <h3><i class="fas fa-plus-circle"></i> CREATE - Add New Task</h3>
+                <div class="form-group">
+                    <input type="text" id="createName" placeholder="Task Name" required>
+                    <div class="priority-selector">
+                        <label>Priority:</label>
+                        <select id="createPriority">
+                            <option value="low">🟢 Low</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="high">🔴 High</option>
+                        </select>
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="createCompleted">
+                        <span class="checkmark"></span>
+                        Mark as completed
+                    </label>
+                    <button onclick="createItem()" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Task
+                    </button>
+                </div>
+            </div>
+
+            <!-- READ ALL -->
+            <div class="operation-card read-card">
+                <h3><i class="fas fa-list"></i> READ - Task Dashboard</h3>
+                <button onclick="getAllItems()" class="btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh Tasks
+                </button>
+                <div id="allItemsResult" class="result-area task-grid"></div>
+            </div>
+
+            <!-- UPDATE -->
+            <div class="operation-card update-card">
+                <h3><i class="fas fa-edit"></i> UPDATE - Modify Task</h3>
+                <div class="form-group">
+                    <input type="text" id="updateId" placeholder="Task ID" required>
+                    <input type="text" id="updateName" placeholder="New Task Name">
+                    <select id="updatePriority">
+                        <option value="low">🟢 Low Priority</option>
+                        <option value="medium">🟡 Medium Priority</option>
+                        <option value="high">🔴 High Priority</option>
+                    </select>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="updateCompleted">
+                        <span class="checkmark"></span>
+                        Mark as completed
+                    </label>
+                    <button onclick="updateItem()" class="btn-warning">
+                        <i class="fas fa-save"></i> Update Task
+                    </button>
+                </div>
+            </div>
+
+            <!-- DELETE -->
+            <div class="operation-card delete-card">
+                <h3><i class="fas fa-trash-alt"></i> DELETE - Remove Task</h3>
+                <div class="form-group">
+                    <input type="text" id="deleteId" placeholder="Task ID" required>
+                    <button onclick="deleteItem()" class="btn-danger">
+                        <i class="fas fa-trash"></i> Delete Task
+                    </button>
+                    <button onclick="clearAllCompleted()" class="btn-danger-outline">
+                        <i class="fas fa-broom"></i> Clear Completed
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="responseArea" class="response-area">
+            <h3><i class="fas fa-terminal"></i> API Response Log</h3>
+            <div class="response-controls">
+                <button onclick="clearLog()" class="btn-small">Clear Log</button>
+                <button onclick="toggleAutoRefresh()" class="btn-small" id="autoRefreshBtn">
+                    <i class="fas fa-play"></i> Auto Refresh
+                </button>
+            </div>
+            <pre id="responseContent">Ready to make API calls...</pre>
+        </div>
+
+        <div class="progress-section">
+            <h3><i class="fas fa-chart-line"></i> Progress Analytics</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+                <span class="progress-text" id="progressText">0% Complete</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
